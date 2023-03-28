@@ -356,7 +356,6 @@ class AugmentedMultiStepRetro:
                 top_to_keep = self.tree_max_best
                 
             solved = a[a['Solved'] == 'Yes'].copy()
-            print(len(solved), 'route solved')
             unsolved = a[a['Solved'] == 'No'].sort_values('Score', ascending=False).copy()[0:top_to_keep].reset_index(drop=True)
             a = pd.concat([solved, unsolved]).sort_values('Score', ascending=False).copy().reset_index(drop=True)
 
