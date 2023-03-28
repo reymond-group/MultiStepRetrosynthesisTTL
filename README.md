@@ -5,19 +5,8 @@ The goal of this tool is to predict multi-step retrosynthesis routes using a tre
 ## Environment:
 
 ``` console
-
 conda env create --name graphretrosynthesis --file environment.yml
-
 conda activate graphretrosynthesis
-python -m pip install 'configargparse'
-pip install PyYAML
-```
-
-Optional:
-``` console
-#pip install rdkit-pypi==2021.9.4
-#pip install jedi==0.17.2
-
 ```
 
 ## Requirements
@@ -32,7 +21,6 @@ Edit the target molecule SMILES such as shown in the default configuration file 
 
 ``` console
 python run_multistep_retrosynthesis.py -c config_example.yaml
-
 ```
 
 ## Results
