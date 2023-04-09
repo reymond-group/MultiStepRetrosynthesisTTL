@@ -1,0 +1,29 @@
+
+target_cpd: 'CC(=O)Nc1ccc(O)cc1'
+project_name: ''
+min_solved_routes: 200
+max_iteration: 25
+
+mark_count: 3
+neighbors: True
+Random_Tagging: True
+AutoTagging: True
+AutoTagging_Beam_Size: 50
+Substructure_Tagging: True
+Retro_USPTO: True
+Std_Fwd_USPTO: False
+Fwd_USPTO_Reag_Pred: True
+USPTO_Reag_Beam_Size: 3
+confidence_filter: False
+Retro_beam_size: 3
+max_mol_per_iteration: 15
+mark_locations_filter: 1
+step_penalties_rate: 0.8
+tree_only_best: 0.70
+tree_min_best: 10000
+tree_max_best: 700000
+branching_max_expansion: 35
+Commercial_exclusions: ['']
+list_substructures_path: 'stocks/list_conditionnal_substructures_tags_R2.csv'
+log: True
+Resume_predictions_from_path: ''
