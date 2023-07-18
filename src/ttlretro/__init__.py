@@ -1,6 +1,6 @@
-"""rxnmapper initialization."""
-__name__ = 'multi_step_retro_predictions'
-__version__ = '0.8.0'
+"""multistep initialization."""
+__name__ = 'ttlretro'
+__version__ = '1.0.1'
 
-from .multi_step_retro_predictions import AugmentedMultiStepRetro
-from .multi_step_retro_predictions import Config
+from .multi_step_retro_predictions import MultiStepGraphRetro
+#from .multi_step_retro_predictions import Config

@@ -1,13 +1,13 @@
 # Project configuration
-target_cpd: 'CC(=O)Nc1ccc(O)cc1'
-project_name: ''
+target_cpd: 'CC(Oc1c(C#N)cc(c2onc(c3c(CC[C@@H]4NCCO)c4ccc3)n2)cc1)C'
+project_name: 'ozanimod'
 Resume_predictions_from_path: ''
 
 # General settings:
-min_solved_routes: 200          # Number of solved routes to reach to stop teh search
-max_iteration: 2                # Max number of iteration search (recommended min 20)
-max_mol_per_iteration: 15       # max number of molecules to extend per iteration
-Commercial_exclusions: ['']     # List of molecular SMILES to exclude from the commercial set
+min_solved_routes: 5000         # Number of solved routes to reach to stop teh search
+max_iteration: 100              # Max number of iteration search (recommended min 20)
+max_mol_per_iteration: 10       # max number of molecules to extend per iteration
+Commercial_exclusions: ['CC(OC1=CC=C(C=C1C#N)C2=NC(C3=C(CC[C@@H]4NC(OC(C)(C)C)=O)C4=CC=C3)=NO2)C', 'CC(C)Oc1ccc(-c2nc(-c3cccc4c3CC[C@@H]4NC(=O)OC(C)(C)C)no2)cc1C#N']     # List of molecular SMILES to exclude from the commercial set
 step_penalties_rate: 0.8        # Score penalty applied for each step
 tmp_file_path: 'tmp/'           # Folder in which storing onmt prediction files
 log: True                       # Enables logs
@@ -28,11 +28,11 @@ Fwd_USPTO_Reag_Pred: True       # Enables USPTO T3 model
 
 # Beam sizes:
 Retro_beam_size: 3              # Number of set of precursors to predict per molecule
-USPTO_Reag_Beam_Size: 3         # Beam size (number of) reactant sets to predict (T2) and try on T3
+USPTO_Reag_Beam_Size: 2         # Beam size (number of) reactant sets to predict (T2) and try on T3
 
 # Tree search performance settings:
 mark_locations_filter: 1        # percentage of tags to keep, randomly selected, use for large molecules
-tree_only_best: 0.75            # percentage of overall branches to keep after an iteration
+tree_only_best: 0.50            # percentage of overall branches to keep after an iteration
 tree_min_best: 5000             # min number of branches to keep after an iteration
 tree_max_best: 50000            # max number of branches to keep after an iteration
 branching_max_expansion: 15     # max number of branching per molecule (node, best score first)
@@ -41,10 +41,10 @@ branching_max_expansion: 15     # max number of branching per molecule (node, be
 Model_Folder:       'models/'   # Folder path containing Transformer models
 
 # Transformer model paths, USPTO:
-USPTO_AutoTag_path: 'AMOL_DB_STEREO_separated_AutoTag_v2_model_step_260000.pt'
-USPTO_T1_path:      'AMOL_DB_STEREO_separated_RETRO_ALT_No_Reagents_v2_model_step_255000.pt'
-USPTO_T2_path:      'AMOL_DB_STEREO_separated_Reagent_Pred_v2_model_step_225000.pt'
-USPTO_T3_path:      'AMOL_DB_STEREO_separated_FORWARD_v3_model_step_255000.pt'
+USPTO_AutoTag_path: 'USPTO_STEREO_separated_T0_AutoTag_260000.pt'
+USPTO_T1_path:      'USPTO_STEREO_separated_T1_Retro_255000.pt'
+USPTO_T2_path:      'USPTO_STEREO_separated_T2_Reagent_Pred_225000.pt'
+USPTO_T3_path:      'USPTO_STEREO_separated_T3_Forward_255000.pt'
 
 # Prediction filters (do not use):
 similarity_filter: False        # Filters out retrosynthesis predictions too similar to the target 

@@ -6,25 +6,21 @@ import numpy as np
 import os
 import copy
 import datetime
-import yaml
 import csv
 
-from makesingleretropredictions import AugmentedSingleStepRetro
+from ttlretro.single_step_retro import SingleStepRetrosynthesis
 
 from scscore import SCScorer
 scs_scorer = SCScorer()
-scs_scorer.restore(os.path.join('scscore', 'models', 'full_reaxys_model_1024bool', 'model.ckpt-10654.as_numpy.json.gz'))
 
-import time
-
-
-class AugmentedMultiStepRetro:
+class MultiStepGraphRetro:
     '''
-        Class for Multiple Step Retrosynthesis by Graph Exploration.
+        Class for Multiple Step Retrosynthesis by Heuristic Best-First Tree Search.
     
     '''
 
-    def __init__(self, 
+    def __init__(
+        self, 
         mark_count = 3, 
         neighbors = True, 
         Random_Tagging = True, 
@@ -32,9 +28,9 @@ class AugmentedMultiStepRetro:
         AutoTagging_Beam_Size = 50,
         Substructure_Tagging = True, 
         Retro_USPTO = True, 
-        Std_Fwd_USPTO = False, 
         Fwd_USPTO_Reag_Pred = True, 
         USPTO_Reag_Beam_Size = 3, 
+        similarity_filter = False, 
         confidence_filter = False, 
         Retro_beam_size = 5, 
         max_mol_per_iteration = 20, 
@@ -48,9 +44,16 @@ class AugmentedMultiStepRetro:
         project_name = '', 
         Commercial_exclusions = [], 
         list_substructures_path = '', 
-        log = False):
+        log = False, 
+        USPTO_AutoTag_path = '',
+        USPTO_T1_path = '', 
+        USPTO_T2_path = '',
+        USPTO_T3_path = '',
+        tmp_file_path = 'tmp/', 
+        commercial_file_path = ''
+        ):
         
-        with open('stocks/Commercial_canonical.smi') as f:
+        with open(commercial_file_path) as f:
             self.Commercial = f.read().splitlines()
         self.Commercial_exclusions = Commercial_exclusions
 
@@ -61,9 +64,9 @@ class AugmentedMultiStepRetro:
         self.AutoTagging_Beam_Size = AutoTagging_Beam_Size
         self.Substructure_Tagging = Substructure_Tagging
         self.Retro_USPTO = Retro_USPTO
-        self.Std_Fwd_USPTO = Std_Fwd_USPTO
         self.Fwd_USPTO_Reag_Pred = Fwd_USPTO_Reag_Pred
         self.USPTO_Reag_Beam_Size = USPTO_Reag_Beam_Size
+        self.similarity_filter = similarity_filter
         self.confidence_filter = confidence_filter
         self.Retro_beam_size = Retro_beam_size
         self.max_mol_per_iteration = max_mol_per_iteration
@@ -77,6 +80,14 @@ class AugmentedMultiStepRetro:
 
         self.project_name = project_name
         self.log = log
+        
+        
+        self.USPTO_AutoTag_path = USPTO_AutoTag_path
+        self.USPTO_T1_path = USPTO_T1_path
+        self.USPTO_T2_path = USPTO_T2_path
+        self.USPTO_T3_path = USPTO_T3_path
+        
+        self.tmp_file_path = tmp_file_path
 
         self.log_time_stamp = str(datetime.datetime.now()).split('.')[0].replace(' ', '__').replace('-', '_').replace(':', '') 
 
@@ -93,10 +104,15 @@ class AugmentedMultiStepRetro:
         else:
             self.list_substructures = [['', '']] 
 
-        self.make_single_retropredictions = AugmentedSingleStepRetro(
+        self.make_single_retropredictions = SingleStepRetrosynthesis(
             log_folder = self.project_name,
             log_time_stamp = self.log_time_stamp, 
-            list_substructures = self.list_substructures
+            list_substructures = self.list_substructures, 
+            USPTO_AutoTag_path = self.USPTO_AutoTag_path, 
+            USPTO_T1_path = self.USPTO_T1_path, 
+            USPTO_T2_path = self.USPTO_T2_path, 
+            USPTO_T3_path = self.USPTO_T3_path, 
+            tmp_file_path = self.tmp_file_path
         )
 
     def _if_commercial(self, smiles):
@@ -106,7 +122,7 @@ class AugmentedMultiStepRetro:
         else:                           
             # Check for charges, neutralize it all:
             if '-' in smiles or '+' in smiles:
-                smiles_2 = self.make_single_retropredictions.neutralize_atoms(smiles=smiles)
+                smiles_2 = self.make_single_retropredictions.neutralize_smi(smiles=smiles)
                 if smiles_2 in self.Commercial_exclusions:  return False
                 if smiles_2 in self.Commercial:             return True
                 else:                                       return False
@@ -119,7 +135,7 @@ class AugmentedMultiStepRetro:
         predictions['Solved_overall'] = [True if all(el) else False for el in predictions['Solved']]
         predictions['Next_Iterated'] = [['Comm' if self._if_commercial(mol) else False for mol in retro] for retro in [mol.split('.') for mol in predictions['Retro']]]
         predictions['Step'] = step
-        predictions['Score_old'] = [predictions.at[el, 'Prob_Forward_Prediction_1'] * (np.prod([1-((scs_scorer.get_score_from_smi(smi)[1]-1)/4) for smi in predictions.at[el, 'Retro'].split('.')])) / (1-((scs_scorer.get_score_from_smi(predictions.at[el, 'Target'])[1]-1)/4)) for el in range(0, len(predictions))]
+        #predictions['Score_old'] = [predictions.at[el, 'Prob_Forward_Prediction_1'] * (np.prod([1-((scs_scorer.get_score_from_smi(smi)[1]-1)/4) for smi in predictions.at[el, 'Retro'].split('.')])) / (1-((scs_scorer.get_score_from_smi(predictions.at[el, 'Target'])[1]-1)/4)) for el in range(0, len(predictions))]
         predictions['Score'] = [predictions.at[el, 'Prob_Forward_Prediction_1'] * (np.prod([1-((scs_scorer.get_score_from_smi(smi)[1]-1)/4) if not self._if_commercial(smi) else 1 for smi in predictions.at[el, 'Retro'].split('.')])) for el in range(0, len(predictions))]        
 
         return predictions
@@ -206,6 +222,7 @@ class AugmentedMultiStepRetro:
     def get_solved_status_from_set_of_rxn(self, list_of_rxn, predictions):
         '''
         Returns if the reactions path have all been explored and if resolved. It looks for "False" or failed in the Next_Iterated column.
+        #todo: function uses half the tree calculation time, should be optimized.
         '''
 
         any_false = False
@@ -356,6 +373,7 @@ class AugmentedMultiStepRetro:
                 top_to_keep = self.tree_max_best
                 
             solved = a[a['Solved'] == 'Yes'].copy()
+            #print(len(solved), 'route solved')  #DEBUG
             unsolved = a[a['Solved'] == 'No'].sort_values('Score', ascending=False).copy()[0:top_to_keep].reset_index(drop=True)
             a = pd.concat([solved, unsolved]).sort_values('Score', ascending=False).copy().reset_index(drop=True)
 
@@ -431,9 +449,9 @@ class AugmentedMultiStepRetro:
             AutoTagging_Beam_Size = self.AutoTagging_Beam_Size, 
             Substructure_Tagging = self.Substructure_Tagging,
             Retro_USPTO = self.Retro_USPTO, 
-            Std_Fwd_USPTO = self.Std_Fwd_USPTO, 
             Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
             USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
+            similarity_filter = self.similarity_filter,
             confidence_filter = self.confidence_filter,
             Retro_beam_size = self.Retro_beam_size,
             mark_locations_filter = self.mark_locations_filter,
@@ -454,8 +472,15 @@ class AugmentedMultiStepRetro:
         tree.to_pickle(         'output/' + self.project_name + '/' + self.log_time_stamp + '__' + tmp + 'tree.pkl')
 
     def multistep_search(self, target_cpd, min_solved_routes=20, max_iteration=4, predictions_OLD=''):
-
-        #self.log_time_stamp = str(datetime.datetime.now()).replace(' ', '__').replace('-', '_')
+        ''' 
+            Main function to run the multistep retrosynthesis search
+            Input: 
+                - target_cpd: SMILES string of the target compound
+                - min_solved_routes: minimum number of solved routes to stop the search
+                - max_iteration: maximum number of iterations to run the search
+                - predictions_OLD: if not empty, the function will continue the search from the previous predictions (Pandas DataFrame)
+        '''
+        
         if self.log: self.make_single_retropredictions.write_logs('Starting multistep retrosynthesis on: ' + str(target_cpd))
 
         target_cpd = self.make_single_retropredictions.canonicalize_smiles(target_cpd)
@@ -511,9 +536,9 @@ class AugmentedMultiStepRetro:
                     AutoTagging_Beam_Size = self.AutoTagging_Beam_Size, 
                     Substructure_Tagging = self.Substructure_Tagging,
                     Retro_USPTO = self.Retro_USPTO, 
-                    Std_Fwd_USPTO = self.Std_Fwd_USPTO, 
                     Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
                     USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
+                    similarity_filter = self.similarity_filter,
                     confidence_filter = self.confidence_filter,
                     Retro_beam_size = self.Retro_beam_size,
                     mark_locations_filter = self.mark_locations_filter,
@@ -545,27 +570,3 @@ class AugmentedMultiStepRetro:
         if self.log: self.make_single_retropredictions.write_logs('normal termination')
         self._save_checkpoint(predictions, tree, final=True)
         return predictions, tree
-
-
-class Config(object):
-    def __init__(self, dpth):
-        with open(dpth, "r", encoding="utf-8") as fp:
-            conf_dict = yaml.load(fp, Loader=yaml.FullLoader)
-            for key, val in conf_dict.items():
-                setattr(self, key, val)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

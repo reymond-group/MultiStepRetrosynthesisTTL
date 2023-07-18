@@ -2,6 +2,7 @@ from rdkit import Chem
 from rdkit.Chem import rdChemReactions
 from rdkit.Chem import rdchem
 import re
+import itertools
 from rdkit.Chem import PeriodicTable
 from rdkit.Chem import GetPeriodicTable
 import random
@@ -77,7 +78,7 @@ class RXNMarkCenter:
         
         return theList.count(1)
     
-    def mark_reaction_center_alt(self, rxn_SMILES_in, method=1):
+    def mark_reaction_center_alt(self, rxn_SMILES_in, method=1, lst_method12=[0,0,0,0,0,0,0,0]):
         '''
         Takes as an input the "atom-mapped" traditionnal strategy marked reaction SMILES. 
         Outputs the alternative version of marking the atoms involved in the reaction.
@@ -124,14 +125,14 @@ class RXNMarkCenter:
                         atom.SetAtomicNum(atom.GetAtomicNum()-1)
                     elif method == 11:  atom.SetFormalCharge(0)
                     elif method == 12:
-                        if random.randint(0, 1) == 1:   atom.SetIsAromatic(1)
-                        if random.randint(0, 1) == 1:   atom.SetAtomicNum(atom.GetAtomicNum()-1)
-                        if random.randint(0, 1) == 1:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
-                        if random.randint(0, 1) == 1:   atom.SetNumRadicalElectrons(1)
-                        if random.randint(0, 1) == 1:   atom.InvertChirality()
-                        if random.randint(0, 1) == 1:   atom.SetFormalCharge(0)
-                        if random.randint(0, 1) == 1:   atom.SetFormalCharge(1)
-                        if random.randint(0, 1) == 1:   atom.SetFormalCharge(-1)
+                        if lst_method12[0]==1:   atom.SetIsAromatic(1)
+                        if lst_method12[1]==1:   atom.SetAtomicNum(atom.GetAtomicNum()-1)
+                        if lst_method12[2]==1:   atom.SetAtomicNum(atom.GetAtomicNum()+1)
+                        if lst_method12[3]==1:   atom.SetNumRadicalElectrons(1)
+                        if lst_method12[4]==1:   atom.InvertChirality()
+                        if lst_method12[5]==1:   atom.SetFormalCharge(0)
+                        if lst_method12[6]==1:   atom.SetFormalCharge(1)
+                        if lst_method12[7]==1:   atom.SetFormalCharge(-1)
                         
                     atom.SetAtomMapNum(0)
         
@@ -209,10 +210,11 @@ class RXNMarkCenter:
         # For empty returns, try method 12
         if MarkedSMILES_alt == '':
             count = 0
-            while MarkedSMILES_alt == '' and count < 5000:
-                MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=12)
-                count += 1
-        
+            n = 8
+            lst = list(itertools.product([0, 1], repeat=n))
+            while MarkedSMILES_alt == '' and count < 2**n:
+                MarkedSMILES_alt = self.mark_reaction_center_alt(rxn_SMILES_in, method=12, lst_method12=lst[count])
+                count += 1      
         return MarkedSMILES_alt
     
     def convert_smarts_to_smiles_alt_tagging(self, product_smarts_mapped_tag):

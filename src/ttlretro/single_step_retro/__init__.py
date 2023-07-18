@@ -1,5 +1,5 @@
-"""rxnmapper initialization."""
-__name__ = 'make_single_retro_prediction'
-__version__ = '0.4.0'
+"""single-step retrosynthesis"""
+__name__ = 'single_step_retro'
+__version__ = '0.5.0'
 
-from .make_single_retro_prediction import AugmentedSingleStepRetro
+from .single_step_retro import SingleStepRetrosynthesis

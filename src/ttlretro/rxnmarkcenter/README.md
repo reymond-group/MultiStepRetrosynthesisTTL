@@ -1,4 +1,4 @@
-# Tag Reaction Center (copy)
+# Tag Reaction Center
  Converts an atom-mapped reaction into a Reaction SMILES where the product reaction center is marked
 
 # Environment:
