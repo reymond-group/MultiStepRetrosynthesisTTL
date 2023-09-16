@@ -1,6 +1,6 @@
 # Multistep Retrosynthesis by a Disconnection Aware Triple Transformer Loop
 
-This repo complements the ChemRxiv preprint ["Multistep retrosynthesis combining a disconnection aware triple transformer loop with a route penalty score guided tree search"](https://chemrxiv.org/engage/chemrxiv/article-details/6422d09a62fecd2a83937199).
+This repository complements the Chemical Science article: ["Multistep retrosynthesis combining a disconnection aware triple transformer loop with a route penalty score guided tree search"](https://pubs.rsc.org/en/content/articlelanding/2023/SC/D3SC01604H).
 
 The goal of this tool is to predict multistep retrosynthesis routes using a tree search strategy and exploiting the Disconnection-Aware Retrosynthesis model. This single-step retrosynthesis model is augmented by combining a bias-free systematic tagging as well as a template-based-inspired tagging using a reaction center substructure identification from known reactions.
 
@@ -13,7 +13,7 @@ conda activate MultiStepRetro
 
 git clone https://github.com/reymond-group/MultiStepRetrosynthesisTTL.git
 cd MultiStepRetrosynthesisTTL
-pip install -e .
+pip install .
 ```
 
 ## Download Models and Tagging Templates
@@ -131,14 +131,16 @@ GitHub repository: [SCScore](https://github.com/connorcoley/scscore)
 ### Cite this work
 
 ``` bash
-@article{kreutter_multistep_2023,
-	title = {Multistep retrosynthesis combining a disconnection aware triple transformer loop 
-        with a route penalty score guided tree search},
-	author = {Kreutter, David and Reymond, Jean-Louis},
-	url = {https://chemrxiv.org/engage/chemrxiv/article-details/6422d09a62fecd2a83937199},
-	doi = {10.26434/chemrxiv-2022-8khth-v2},
-	publisher = {ChemRxiv},
-	month = mar,
-	year = {2023},
+@article{kreutterMultistepRetrosynthesisCombining2023,
+  title = {Multistep Retrosynthesis Combining a Disconnection Aware Triple Transformer Loop 
+		with a Route Penalty Score Guided Tree Search},
+  author = {Kreutter, David and Reymond, Jean-Louis},
+  url = {https://pubs.rsc.org/en/content/articlelanding/2023/sc/d3sc01604h},
+  doi = {10.1039/D3SC01604H},
+  publisher = {The Royal Society of Chemistry},
+  date = {2023-09-01},
+  journaltitle = {Chemical Science},
+  shortjournal = {Chem. Sci.},
+  issn = {2041-6539},
 }
 ```
