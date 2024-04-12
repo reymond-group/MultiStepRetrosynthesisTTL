@@ -21,10 +21,16 @@ AutoTagging: True               # Enables Transformer-based tagging
 AutoTagging_Beam_Size: 50       # Number of tags to generate by the tagging Transformer
 Substructure_Tagging: True      # Enable tagging by matching substructure
 list_substructures_path: 'stocks/list_conditionnal_substructures_tags_R2.csv'
+list_substr_path_ENZR: 'stocks/list_conditionnal_substructures_tags_ENZR_R2.csv'
 
 # USPTO Retrosynthesis parameters:
 Retro_USPTO: True               # Enables USPTO T1 model
 Fwd_USPTO_Reag_Pred: True       # Enables USPTO T3 model
+
+# ENZR Retrosynthesis parameters:
+Retro_ENZR: True                # Enables ENZR T1 model
+Fwd_ENZ_Reag_Pred: True         # Enables ENZR T3 model
+ENZR_confidence_threshold: 0.97 # T3 Confidence threshold under which the predictions are discarded
 
 # Beam sizes:
 Retro_beam_size: 3              # Number of set of precursors to predict per molecule
@@ -41,10 +47,16 @@ branching_max_expansion: 15     # max number of branching per molecule (node, be
 Model_Folder:       'models/'   # Folder path containing Transformer models
 
 # Transformer model paths, USPTO:
-USPTO_AutoTag_path: 'USPTO_STEREO_separated_T0_AutoTag_260000.pt'
-USPTO_T1_path:      'USPTO_STEREO_separated_T1_Retro_255000.pt'
-USPTO_T2_path:      'USPTO_STEREO_separated_T2_Reagent_Pred_225000.pt'
-USPTO_T3_path:      'USPTO_STEREO_separated_T3_Forward_255000.pt'
+USPTO_AutoTag_path: 'AMOL_DB_STEREO_separated_AutoTag_v2_model_step_260000.pt'
+USPTO_T1_path:      'AMOL_DB_STEREO_separated_RETRO_ALT_No_Reagents_v2_model_step_255000.pt'
+USPTO_T2_path:      'AMOL_DB_STEREO_separated_Reagent_Pred_v2_model_step_225000.pt'
+USPTO_T3_path:      'AMOL_DB_STEREO_separated_FORWARD_v3_model_step_255000.pt'
+
+# Transformer model paths, ENZR:
+ENZR_AutoTag_path:  ''
+ENZR_T1_path:       'T1_03_ENZR_USPTO_RTS__ENZR_T1_RETRO_TAGGED_06_2023_v1_model_step_275000.pt'
+ENZR_T2_path:       'T2_06_ENZR_USPTO_RTS_FULL__ENZR_T2_ENZ_PRED__FULL_06_2023_v1_model_step_295000.pt'
+ENZR_T3_path:       'T3_06_ENZR_USPTO_RTS_FULL__ENZR_T3_FORW_VAL__FULL_06_2023_v1_model_step_285000.pt'
 
 # Prediction filters (do not use):
 similarity_filter: False        # Filters out retrosynthesis predictions too similar to the target 
