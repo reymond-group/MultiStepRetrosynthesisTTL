@@ -2,10 +2,10 @@
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
-#from rdkit.Chem import rdChemReactions
-#from rdkit.Chem.Draw import IPythonConsole
-#from rdkit.Chem import PandasTools
-#from rdkit.Chem import Draw
+from rdkit.Chem import rdChemReactions
+from rdkit.Chem.Draw import IPythonConsole
+from rdkit.Chem import PandasTools
+from rdkit.Chem import Draw
 import pandas as pd
 
 def display_branch(

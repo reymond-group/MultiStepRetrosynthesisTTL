@@ -6,6 +6,7 @@ import numpy as np
 import os
 import copy
 import datetime
+import yaml
 import csv
 
 from ttlretro.single_step_retro import SingleStepRetrosynthesis
@@ -13,9 +14,12 @@ from ttlretro.single_step_retro import SingleStepRetrosynthesis
 from scscore import SCScorer
 scs_scorer = SCScorer()
 
+import time
+
+
 class MultiStepGraphRetro:
     '''
-        Class for Multiple Step Retrosynthesis by Heuristic Best-First Tree Search.
+        Class for Multiple Step Retrosynthesis by Graph Exploration.
     
     '''
 
@@ -27,7 +31,9 @@ class MultiStepGraphRetro:
         AutoTagging = False,
         AutoTagging_Beam_Size = 50,
         Substructure_Tagging = True, 
+        Retro_ENZR = False, 
         Retro_USPTO = True, 
+        Fwd_ENZ_Reag_Pred = False, 
         Fwd_USPTO_Reag_Pred = True, 
         USPTO_Reag_Beam_Size = 3, 
         similarity_filter = False, 
@@ -44,11 +50,17 @@ class MultiStepGraphRetro:
         project_name = '', 
         Commercial_exclusions = [], 
         list_substructures_path = '', 
+        list_substr_path_ENZR = '', 
         log = False, 
         USPTO_AutoTag_path = '',
         USPTO_T1_path = '', 
         USPTO_T2_path = '',
         USPTO_T3_path = '',
+        ENZR_AutoTag_path = '',
+        ENZR_T1_path = '', 
+        ENZR_T2_path = '',
+        ENZR_T3_path = '',
+        ENZR_confidence_threshold = 0.0, 
         tmp_file_path = 'tmp/', 
         commercial_file_path = ''
         ):
@@ -63,7 +75,9 @@ class MultiStepGraphRetro:
         self.AutoTagging = AutoTagging
         self.AutoTagging_Beam_Size = AutoTagging_Beam_Size
         self.Substructure_Tagging = Substructure_Tagging
+        self.Retro_ENZR = Retro_ENZR
         self.Retro_USPTO = Retro_USPTO
+        self.Fwd_ENZ_Reag_Pred = Fwd_ENZ_Reag_Pred
         self.Fwd_USPTO_Reag_Pred = Fwd_USPTO_Reag_Pred
         self.USPTO_Reag_Beam_Size = USPTO_Reag_Beam_Size
         self.similarity_filter = similarity_filter
@@ -86,6 +100,11 @@ class MultiStepGraphRetro:
         self.USPTO_T1_path = USPTO_T1_path
         self.USPTO_T2_path = USPTO_T2_path
         self.USPTO_T3_path = USPTO_T3_path
+        self.ENZR_AutoTag_path = ENZR_AutoTag_path
+        self.ENZR_T1_path = ENZR_T1_path
+        self.ENZR_T2_path = ENZR_T2_path
+        self.ENZR_T3_path = ENZR_T3_path
+        self.ENZR_confidence_threshold = ENZR_confidence_threshold
         
         self.tmp_file_path = tmp_file_path
 
@@ -104,19 +123,33 @@ class MultiStepGraphRetro:
         else:
             self.list_substructures = [['', '']] 
 
+        if list_substr_path_ENZR != '':
+            with open(list_substr_path_ENZR, 'r') as f:
+                reader = csv.reader(f)
+                self.list_substructures_ENZR = list(reader)
+        else:
+            self.list_substructures_ENZR = [['', '']] 
+
         self.make_single_retropredictions = SingleStepRetrosynthesis(
             log_folder = self.project_name,
             log_time_stamp = self.log_time_stamp, 
             list_substructures = self.list_substructures, 
+            list_substructures_ENZR = self.list_substructures_ENZR, 
             USPTO_AutoTag_path = self.USPTO_AutoTag_path, 
             USPTO_T1_path = self.USPTO_T1_path, 
             USPTO_T2_path = self.USPTO_T2_path, 
             USPTO_T3_path = self.USPTO_T3_path, 
+            ENZR_AutoTag_path = self.ENZR_AutoTag_path, 
+            ENZR_T1_path = self.ENZR_T1_path, 
+            ENZR_T2_path = self.ENZR_T2_path, 
+            ENZR_T3_path = self.ENZR_T3_path, 
+            ENZR_confidence_threshold = self.ENZR_confidence_threshold, 
             tmp_file_path = self.tmp_file_path
         )
 
     def _if_commercial(self, smiles):
         
+        #if len(smiles.replace('[', '').replace(']', '').replace('+', '').replace('-', '').replace('=', '').replace('@', '').replace('(', '').replace(')', '')) <= 5:            return True
         if smiles in self.Commercial_exclusions: return False
         if smiles in self.Commercial:   return True
         else:                           
@@ -222,7 +255,10 @@ class MultiStepGraphRetro:
     def get_solved_status_from_set_of_rxn(self, list_of_rxn, predictions):
         '''
         Returns if the reactions path have all been explored and if resolved. It looks for "False" or failed in the Next_Iterated column.
-        #todo: function uses half the tree calculation time, should be optimized.
+        #todo: supposed to tell if a set of reaction are solved or not, however, as it currently is, it does not consider WTF???
+        #todo: clarify "any_list_not_one_el_present", does it avoid loops? It is supposed to look if the list of a given expanded shit is present in the list of rxn. Route is solved if all elements are connected and ends by 'Comm' next iterated.
+        #todo: function uses half the tree calculation time, should be optimized 
+        any_list_not_one_el_present should be re-initalized at each iteration????? No since it's activated in case one of the list is not present
         '''
 
         any_false = False
@@ -373,7 +409,7 @@ class MultiStepGraphRetro:
                 top_to_keep = self.tree_max_best
                 
             solved = a[a['Solved'] == 'Yes'].copy()
-            #print(len(solved), 'route solved')  #DEBUG
+            print(len(solved), 'route solved')  #DEBUG
             unsolved = a[a['Solved'] == 'No'].sort_values('Score', ascending=False).copy()[0:top_to_keep].reset_index(drop=True)
             a = pd.concat([solved, unsolved]).sort_values('Score', ascending=False).copy().reset_index(drop=True)
 
@@ -448,7 +484,9 @@ class MultiStepGraphRetro:
             AutoTagging = self.AutoTagging, 
             AutoTagging_Beam_Size = self.AutoTagging_Beam_Size, 
             Substructure_Tagging = self.Substructure_Tagging,
+            Retro_ENZR = self.Retro_ENZR,
             Retro_USPTO = self.Retro_USPTO, 
+            Fwd_ENZ_Reag_Pred = self.Fwd_ENZ_Reag_Pred, 
             Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
             USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
             similarity_filter = self.similarity_filter,
@@ -535,7 +573,9 @@ class MultiStepGraphRetro:
                     AutoTagging = self.AutoTagging, 
                     AutoTagging_Beam_Size = self.AutoTagging_Beam_Size, 
                     Substructure_Tagging = self.Substructure_Tagging,
+                    Retro_ENZR = self.Retro_ENZR,
                     Retro_USPTO = self.Retro_USPTO, 
+                    Fwd_ENZ_Reag_Pred = self.Fwd_ENZ_Reag_Pred, 
                     Fwd_USPTO_Reag_Pred = self.Fwd_USPTO_Reag_Pred, 
                     USPTO_Reag_Beam_Size = self.USPTO_Reag_Beam_Size, 
                     similarity_filter = self.similarity_filter,
@@ -570,3 +610,30 @@ class MultiStepGraphRetro:
         if self.log: self.make_single_retropredictions.write_logs('normal termination')
         self._save_checkpoint(predictions, tree, final=True)
         return predictions, tree
+
+
+
+
+'''         # Moved elsewhere because of conflicting __init__.py imports
+class Config(object):
+    def __init__(self, dpth):
+        with open(dpth, "r", encoding="utf-8") as fp:
+            conf_dict = yaml.load(fp, Loader=yaml.FullLoader)
+            for key, val in conf_dict.items():
+                setattr(self, key, val)'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

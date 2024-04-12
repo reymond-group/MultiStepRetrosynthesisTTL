@@ -14,16 +14,18 @@ from random import sample
 import re
 
 import datetime
+import subprocess
 import onmt.bin.translate as trsl 
 from typing import List, Tuple
 
 from ttlretro.rxnmarkcenter import RXNMarkCenter
+from ttlretro.utils.confidence_normalization_enzr_full import normalize_enzr_conf
 
 
 class SingleStepRetrosynthesis:
     '''
         Class for Single Step Retrosynthesis.
-        The input is passed over Transformer model: Retrosynthesis (T1), reagent prediction (T2) and validated over the Forward Model (T3).
+        The input is passed over the Retrosynthesis Transformer model, followed by reagent prediction, then predictions are validated over the Forward Model.
     '''
 
     def __init__(
@@ -31,10 +33,16 @@ class SingleStepRetrosynthesis:
         log_folder = '', 
         log_time_stamp = '', 
         list_substructures = [['', '']], 
+        list_substructures_ENZR = [['', '']], 
         USPTO_AutoTag_path = '',
         USPTO_T1_path = '', 
         USPTO_T2_path = '',
         USPTO_T3_path = '',
+        ENZR_AutoTag_path = '',
+        ENZR_T1_path = '', 
+        ENZR_T2_path = '',
+        ENZR_T3_path = '',
+        ENZR_confidence_threshold = 0.0, 
         tmp_file_path = 'tmp/',
         ):
         
@@ -42,6 +50,11 @@ class SingleStepRetrosynthesis:
         self.USPTO_T1_path = USPTO_T1_path
         self.USPTO_T2_path = USPTO_T2_path
         self.USPTO_T3_path = USPTO_T3_path
+        self.ENZR_AutoTag_path = ENZR_AutoTag_path
+        self.ENZR_T1_path = ENZR_T1_path
+        self.ENZR_T2_path = ENZR_T2_path
+        self.ENZR_T3_path = ENZR_T3_path
+        self.ENZR_confidence_threshold = ENZR_confidence_threshold
         
         #      Custom Model:
         self.Custom_Model = 'Custom_Model.pt'  # for round-trip accuracy testing
@@ -52,7 +65,9 @@ class SingleStepRetrosynthesis:
         self.log_time_stamp = log_time_stamp
 
         self.list_substructures = list_substructures
+        self.list_substructures_ENZR = list_substructures_ENZR
         self.rxn_mark_center = RXNMarkCenter()
+        self.enzr_norm_func = normalize_enzr_conf()
 
     def write_logs(self, logs: str) -> None:
         
@@ -200,7 +215,7 @@ class SingleStepRetrosynthesis:
         Reag_Pred_from_Reaction = [Retro[el] + ' > > ' + Target[el] for el in range(0, len(Retro))]
 
         # Execute Reagent Prediction:
-        predictions, _ = self.Execute_Prediction(
+        predictions, probs = self.Execute_Prediction(
             SMILES_list = Reag_Pred_from_Reaction,
             Model_path = self.USPTO_T2_path,
             beam_size = beam_size_output
@@ -210,8 +225,27 @@ class SingleStepRetrosynthesis:
         for i in range(0, beam_size_output):
             pred.append(predictions[i])
 
-        # TODO: Check if no reagent is useful:
-        #pred.append('')
+        return pred
+    
+    def get_reagent_prediction_ENZR(self, df_prediction_Forw, beam_size_output=3):
+        
+        # Prepare Input for Reagent prediction model:
+        Retro = [self.smi_tokenizer(el) for el in df_prediction_Forw['Retro']]
+        Target = [self.smi_tokenizer(el) for el in df_prediction_Forw['Target']]
+        Reag_Pred_from_Reaction = ['ENZYME ' + Retro[el] + ' > > ' + Target[el] + ' ENZYME' for el in range(0, len(Retro))]
+        
+        # Execute Reagent Prediction:
+        predictions, probs = self.Execute_Prediction(
+            SMILES_list = Reag_Pred_from_Reaction,
+            Model_path = self.ENZR_T2_path,
+            beam_size = beam_size_output, 
+            untokenize_output = False
+        )
+        
+        pred = []
+        for i in range(0, beam_size_output):
+            pred.append(predictions[i])
+            
         return pred
     
     def get_AutoTags(self, target: str, ini_smiles: str, AutoTagging_Beam_Size: int, Model: str = '') -> list:
@@ -257,13 +291,29 @@ class SingleStepRetrosynthesis:
     def Make_Forward_Prediction(
         self, 
         df_prediction_Forw, 
+        Fwd_ENZ_Reag_Pred=False, 
         Fwd_USPTO_Reag_Pred=True, 
         USPTO_Reag_Beam_Size=3, 
         log=False
         ):
 
+        # Need entire reformating to cover cases when we want individual models but also multiple
         forw_df = []
 
+        # Set of predicted Enzyme Names:        [[NEW]]
+        if Fwd_ENZ_Reag_Pred:
+            # Selecting ENZR subset:
+            df_prediction_Forw_sub = df_prediction_Forw[df_prediction_Forw['T1_Model'] == self.ENZR_T1_path].copy()
+            
+            if log: self.write_logs('Predicting reagents for ENZR fwd Pred, {} predictions...'.format(len(df_prediction_Forw_sub)))
+            reagent_set = self.get_reagent_prediction_ENZR(df_prediction_Forw_sub, beam_size_output=USPTO_Reag_Beam_Size)
+            
+            for i in range(0, len(reagent_set)):
+                df_prediction_Forw_sub['Forward_Model'] = self.ENZR_T3_path
+                df_prediction_Forw_sub['Reagents'] = reagent_set[i]
+                forw_df.append(df_prediction_Forw_sub.copy())
+            if log: self.write_logs('ENZR Reagents set predicted')
+            
         # Set of predicted USPTO Reagents:
         if Fwd_USPTO_Reag_Pred:
             # Selecting USPTO subset:
@@ -288,9 +338,23 @@ class SingleStepRetrosynthesis:
 
         # Tokenization:
         for element in range(0, len(forw_df)):
-            if  forw_df.at[element, 'Forward_Model'] == self.USPTO_T3_path:
+            if forw_df.at[element, 'Forward_Model'] == self.ENZR_T3_path:
+                forw_df.at[element, 'Forward_Model_Input'] = 'ENZYME ' + self.smi_tokenizer(forw_df.at[element, 'Retro']) + ' > ' + forw_df.at[element, 'Reagents'] + ' ENZYME'
+            elif  forw_df.at[element, 'Forward_Model'] == self.USPTO_T3_path:
                 forw_df.at[element, 'Forward_Model_Input'] = self.smi_tokenizer(forw_df.at[element, 'Retro']) + ' > ' + self.smi_tokenizer(forw_df.at[element, 'Reagents'])
 
+        # T3 ENZR Forward Prediction:
+        if Fwd_ENZ_Reag_Pred:
+            if log: self.write_logs('ENZR_Reag_Pred Forward prediction...')
+            predictions, probs = self.Execute_Prediction(list(forw_df[forw_df['Forward_Model'] == self.ENZR_T3_path]['Forward_Model_Input']), Model_path=self.ENZR_T3_path, beam_size=3)
+            
+            if len(forw_df.loc[forw_df['Forward_Model'] == self.ENZR_T3_path, 'Forward_Prediction']) == len(predictions[0]):
+                forw_df.loc[forw_df['Forward_Model'] == self.ENZR_T3_path, 'Forward_Prediction'] = predictions[0]
+                forw_df.loc[forw_df['Forward_Model'] == self.ENZR_T3_path, 'Prob_Forward_Prediction_1'] = self.enzr_norm_func(probs[0])
+                forw_df.loc[forw_df['Forward_Model'] == self.ENZR_T3_path, 'Prob_Forward_Prediction_2'] = self.enzr_norm_func(probs[1])
+            else:
+                if log: self.write_logs('Lenghts predictions mismatch: {}, vs {}'.format(len(forw_df.loc[forw_df['Forward_Model'] == self.ENZR_T3_path, 'Forward_Prediction']), len(predictions[0])))
+        
         # T3 USPTO Forward Prediction:
         if Fwd_USPTO_Reag_Pred:
             if log: self.write_logs('USPTO_T3 Forward prediction...')
@@ -348,13 +412,14 @@ class SingleStepRetrosynthesis:
         
         return df_filtered
     
-    def _get_list_tags(self, Random_Tagging, AutoTagging, Substructure_Tagging, mark_count, neighbors, target, SMILES, AutoTagging_Beam_Size, mark_locations_filter, log):
+    def _get_list_tags(self, Random_Tagging, AutoTagging, AutoTagModel, Substructure_Tagging, mark_count, neighbors, list_substructures, target, SMILES, AutoTagging_Beam_Size, mark_locations_filter, log):
         '''
         The function tags atoms in the target molecule.
         
         Args:
             Random_Tagging (bool): If True, the function will mark random atoms in the target molecule.
             AutoTagging (bool): If True, the function will mark the atoms in the target molecule using the AutoTagging model.
+            AutoTagModel (str): The path to the AutoTagging model.
             Substructure_Tagging (bool): If True, the function will mark the atoms in the target molecule using the Substructure_Tagging model.
             mark_count (int): The number of atoms to mark.
             neighbors (int): The number of neighbors to consider when marking atoms.
@@ -373,24 +438,21 @@ class SingleStepRetrosynthesis:
             for i in range(mark_count):
                 list_retro += self.rxn_mark_center.Mark_Random_Atoms(target, mark_count=i+1, neighbors=neighbors, tokenized=True)
         
-        # USPTO AutoTagging:
         if AutoTagging:
-            list_retro += self.get_AutoTags(target=target, ini_smiles=SMILES, AutoTagging_Beam_Size=AutoTagging_Beam_Size, Model=self.USPTO_AutoTag_path)
+            list_retro += self.get_AutoTags(target=target, ini_smiles=SMILES, AutoTagging_Beam_Size=AutoTagging_Beam_Size, Model=AutoTagModel)
         
         if Substructure_Tagging:
-            list_retro += self.rxn_mark_center.Mark_matching_substructures(mol_SMILES=target, list_conditionnal_substructures_tags=self.list_substructures, tokenized=True)
+            list_retro += self.rxn_mark_center.Mark_matching_substructures(mol_SMILES=target, list_conditionnal_substructures_tags=list_substructures, tokenized=True)
         
         # Remove duplicate tags:
         list_retro = list(set(list_retro))
 
         # Random tag filtering:
-        if mark_locations_filter < 1:
-            list_retro = sample(list_retro, int(round(len(list_retro)*mark_locations_filter, 0)))
+        if mark_locations_filter < 1:   list_retro = sample(list_retro, int(round(len(list_retro)*mark_locations_filter, 0)))
         
         # Check if list_retro is empty:
-        if len(list_retro) == 0 and log:
-            self.write_logs('WARNING: length of list_retro = 0')
-            
+        if len(list_retro) == 0 and log: self.write_logs('WARNING: length of list_retro = 0')
+        
         return list_retro
     
     @staticmethod
@@ -450,7 +512,9 @@ class SingleStepRetrosynthesis:
         AutoTagging = True, 
         AutoTagging_Beam_Size = 50, 
         Substructure_Tagging = True, 
+        Retro_ENZR = True, 
         Retro_USPTO = True, 
+        Fwd_ENZ_Reag_Pred = True, 
         Fwd_USPTO_Reag_Pred = True, 
         USPTO_Reag_Beam_Size = 3, 
         similarity_filter = False, 
@@ -463,29 +527,65 @@ class SingleStepRetrosynthesis:
         target = self.canonicalize_smiles(SMILES)
         if log: self.write_logs('Retro prediction on mol ' + str(target))
         
-        list_retro = self._get_list_tags(
+        list_retro_USPTO = self._get_list_tags(
             Random_Tagging = Random_Tagging, 
             AutoTagging = AutoTagging, 
+            AutoTagModel = self.USPTO_AutoTag_path, 
             Substructure_Tagging = Substructure_Tagging, 
             mark_count = mark_count, 
             neighbors = neighbors, 
+            list_substructures = self.list_substructures, 
             target = target, 
             SMILES = SMILES, 
             AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
             mark_locations_filter = mark_locations_filter, 
             log = log, 
-            )
+        )
+
+        list_retro_ENZR = self._get_list_tags(
+            Random_Tagging = False,     # Random tagging is not used for ENZR
+            AutoTagging = AutoTagging, 
+            AutoTagModel = self.ENZR_AutoTag_path, 
+            Substructure_Tagging = Substructure_Tagging, 
+            mark_count = mark_count, 
+            neighbors = neighbors, 
+            list_substructures = self.list_substructures_ENZR, 
+            target = target, 
+            SMILES = SMILES, 
+            AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
+            mark_locations_filter = mark_locations_filter, 
+            log = log, 
+        )
         
         concat_models = []
         
-        if len(list_retro) == 0:
+        if len(list_retro_USPTO) + len(list_retro_ENZR) == 0:
             curr_model = pd.DataFrame(columns=['T1_Model', 'ID', 'ID_Tag', 'ID_beam', 'Target', 'Tagged_Target', 'Retro', 'Retro_Conf'])
             concat_models.append(curr_model.copy())
         
-        if Retro_USPTO and len(list_retro) > 0:
-            if log: self.write_logs('Retro prediction on USPTO model ' + str(len(list_retro)) + ' marking examples...')
+        # Execute Retro prediction on USPTO model:
+        if Retro_ENZR and len(list_retro_ENZR) > 0:
+            if log: self.write_logs('Retro prediction on ENZR model ' + str(len(list_retro_ENZR)) + ' marking examples...')
+            current_model = self.ENZR_T1_path
+            predictions, probs = self.Execute_Prediction(SMILES_list=['ENZYME ' + el + ' ENZYME' for el in list_retro_ENZR], Model_path=current_model, beam_size=Retro_beam_size)
+            
+            # Make DataFrame out of the predictions:
+            curr_model = pd.DataFrame(['' for element in range(0, len(predictions)*len(predictions[0]))])
+            curr_model['T1_Model'] =     str(current_model)
+            curr_model['ID'] =           ['R_{}.{}'.format(str(each_TAG+1), str(each_beam+1)) for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['ID_Tag'] =       [each_TAG+1 for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['ID_beam'] =      [each_beam+1 for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['Target'] =       target
+            curr_model['Tagged_Target'] =   [list_retro_ENZR[each_TAG].replace(' ', '') for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['Retro'] =        [self.canonicalize_smiles(predictions[each_beam][each_TAG]) for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['Retro_Conf'] =   [probs[each_beam][each_TAG] for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            del curr_model[0]
+            concat_models.append(curr_model.copy())
+        
+        if Retro_USPTO and len(list_retro_USPTO) > 0:
+            if log: self.write_logs('Retro prediction on USPTO model ' + str(len(list_retro_USPTO)) + ' marking examples...')
             current_model = self.USPTO_T1_path
-            predictions, probs = self.Execute_Prediction(SMILES_list=list_retro, Model_path=current_model, beam_size=Retro_beam_size)
+            predictions, probs = self.Execute_Prediction(SMILES_list=list_retro_USPTO, Model_path=current_model, beam_size=Retro_beam_size)
 
             # Make DataFrame out of the predictions:
             curr_model = pd.DataFrame(['' for element in range(0, len(predictions)*len(predictions[0]))])
@@ -494,13 +594,13 @@ class SingleStepRetrosynthesis:
             curr_model['ID_Tag'] =       [each_TAG+1 for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
             curr_model['ID_beam'] =      [each_beam+1 for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
             curr_model['Target'] =       target
-            curr_model['Tagged_Target'] =   [list_retro[each_TAG].replace(' ', '') for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
+            curr_model['Tagged_Target'] =   [list_retro_USPTO[each_TAG].replace(' ', '') for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
             curr_model['Retro'] =        [self.canonicalize_smiles(predictions[each_beam][each_TAG]) for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
             curr_model['Retro_Conf'] =   [probs[each_beam][each_TAG] for each_TAG in range(0, len(predictions[0])) for each_beam in range(0, len(predictions))]
             del curr_model[0]
             concat_models.append(curr_model.copy())
 
-        # Concatenate all Retro Predictions, remove duplicates, remove too long sequences:
+        # Concatenate all Retro Predictions Across All Models, remove duplicates, remove too long sequences:
         df_prediction = pd.concat(concat_models)
         df_prediction = df_prediction.drop_duplicates(subset=['T1_Model', 'Retro'], keep='first').copy()
         df_prediction = df_prediction[df_prediction['Retro'] != ''].copy()
@@ -510,18 +610,24 @@ class SingleStepRetrosynthesis:
         df_prediction_Forw = df_prediction.copy().reset_index(drop=True).reset_index()     # Do not drop indexes
         df_prediction_Forw_2 = self.Make_Forward_Prediction(
             df_prediction_Forw = df_prediction_Forw, 
+            Fwd_ENZ_Reag_Pred = Fwd_ENZ_Reag_Pred, 
             Fwd_USPTO_Reag_Pred = Fwd_USPTO_Reag_Pred, 
             USPTO_Reag_Beam_Size = USPTO_Reag_Beam_Size, 
             log = log
             )
         del df_prediction_Forw_2['Forward_Model_Input']
 
-        # Save unvalidated routes for debugging: #DEBUG
+        # Save unvalidated routes for debugging or custom predictions: #DEBUG
         df_prediction_ALL_Debug_Backup = df_prediction_Forw_2.copy()
         
         # Keep predictions where T3 predicts the correct target, and target is not in the retro prediction:
         df_prediction_Forw_val = df_prediction_Forw_2[df_prediction_Forw_2['Target'] == df_prediction_Forw_2['Forward_Prediction']]
         df_prediction_Forw_val = df_prediction_Forw_val[df_prediction_Forw_val['Target'] != df_prediction_Forw_val['Retro']]
+        
+        # Remove low confident ENZR predictions:
+        if Retro_ENZR:
+            items = df_prediction_Forw_val[(df_prediction_Forw_val['Forward_Model'] == self.ENZR_T3_path) & (df_prediction_Forw_val['Prob_Forward_Prediction_1'] < self.ENZR_confidence_threshold)].index
+            df_prediction_Forw_val.drop(items, inplace=True)
         
         del df_prediction_Forw_val['index']
         df_prediction_Forw_val = df_prediction_Forw_val.reset_index(drop=True).reset_index()

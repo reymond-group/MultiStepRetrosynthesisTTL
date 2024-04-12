@@ -20,7 +20,9 @@ default_values = {
     'AutoTagging': False,
     'AutoTagging_Beam_Size': 50,
     'Substructure_Tagging': True,
+    'Retro_ENZR': False,
     'Retro_USPTO': True,
+    'Fwd_ENZ_Reag_Pred': False,
     'Fwd_USPTO_Reag_Pred': True,
     'USPTO_Reag_Beam_Size': 3,
     'similarity_filter': False,
@@ -35,6 +37,7 @@ default_values = {
     'branching_max_expansion': 20,
     'Commercial_exclusions': [],
     'list_substructures_path': '',
+    'list_substr_path_ENZR': '',
     'log': True,
     'Resume_predictions_from_path': '', 
     'Model_Folder': '',
@@ -42,9 +45,15 @@ default_values = {
     'USPTO_T1_path': '', 
     'USPTO_T2_path': '',
     'USPTO_T3_path': '',
+    'ENZR_AutoTag_path': '',
+    'ENZR_T1_path': '', 
+    'ENZR_T2_path': '',
+    'ENZR_T3_path': '',
+    'ENZR_confidence_threshold': '0.9',
     'tmp_file_path': 'tmp/',
     'commercial_file_path': 'stocks/Commercial_canonical.smi', 
     }
+
 
 def _load_check_config(configfile):
     
@@ -105,6 +114,9 @@ def _check_retro_config(conf_dict):
     if conf_dict.Substructure_Tagging and conf_dict.list_substructures_path == '':
         print('Invalid configuration, no path to substructures.')
         sys.exit(2)
+    if not conf_dict.Retro_ENZR and conf_dict.list_substr_path_ENZR == '':
+        print('Invalid configuration, no path to substructures for Enz.')
+        sys.exit(2)
     
     return conf_dict
 
@@ -117,7 +129,9 @@ def _load_multistep_graph_retro(conf_dict):
         AutoTagging = conf_dict.AutoTagging, 
         AutoTagging_Beam_Size = conf_dict.AutoTagging_Beam_Size, 
         Substructure_Tagging = conf_dict.Substructure_Tagging, 
+        Retro_ENZR = conf_dict.Retro_ENZR, 
         Retro_USPTO = conf_dict.Retro_USPTO, 
+        Fwd_ENZ_Reag_Pred = conf_dict.Fwd_ENZ_Reag_Pred, 
         Fwd_USPTO_Reag_Pred = conf_dict.Fwd_USPTO_Reag_Pred, 
         USPTO_Reag_Beam_Size = conf_dict.USPTO_Reag_Beam_Size, 
         similarity_filter = conf_dict.similarity_filter, 
@@ -133,11 +147,17 @@ def _load_multistep_graph_retro(conf_dict):
         project_name = conf_dict.project_name, 
         Commercial_exclusions = conf_dict.Commercial_exclusions, 
         list_substructures_path = conf_dict.list_substructures_path, 
+        list_substr_path_ENZR = conf_dict.list_substr_path_ENZR, 
         log = conf_dict.log, 
         USPTO_AutoTag_path = conf_dict.Model_Folder + conf_dict.USPTO_AutoTag_path,
         USPTO_T1_path = conf_dict.Model_Folder + conf_dict.USPTO_T1_path, 
         USPTO_T2_path = conf_dict.Model_Folder + conf_dict.USPTO_T2_path,
         USPTO_T3_path = conf_dict.Model_Folder + conf_dict.USPTO_T3_path,
+        ENZR_AutoTag_path = conf_dict.Model_Folder + conf_dict.ENZR_AutoTag_path,
+        ENZR_T1_path = conf_dict.Model_Folder + conf_dict.ENZR_T1_path, 
+        ENZR_T2_path = conf_dict.Model_Folder + conf_dict.ENZR_T2_path,
+        ENZR_T3_path = conf_dict.Model_Folder + conf_dict.ENZR_T3_path,
+        ENZR_confidence_threshold = conf_dict.ENZR_confidence_threshold,
         tmp_file_path = conf_dict.tmp_file_path, 
         commercial_file_path = conf_dict.commercial_file_path,
         )
@@ -176,6 +196,7 @@ def run_retrosynthesis(configfile):
         max_iteration = conf_dict.max_iteration, 
         predictions_OLD = conf_dict.predictions_pickle
         )
+
 
 def main():
     
