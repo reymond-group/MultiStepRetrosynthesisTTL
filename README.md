@@ -1,36 +1,26 @@
-# Multistep Retrosynthesis by a Disconnection Aware Triple Transformer Loop
+# Chemoenzymatic Multistep Retrosynthesis by Disconnection Aware Triple Transformer Loops
 
-This repository complements the Chemical Science article: ["Multistep retrosynthesis combining a disconnection aware triple transformer loop with a route penalty score guided tree search"](https://pubs.rsc.org/en/content/articlelanding/2023/SC/D3SC01604H).
+This repo complements the ChemRxiv preprint ["Chemoenzymatic Multistep Retrosynthesis with Transformer Loops"](https://chemrxiv.org/engage/chemrxiv/article-details/6617b48391aefa6ce157c2b4). This work is based on the _Chemical Science_ article ["Multistep retrosynthesis combining a disconnection aware triple transformer loop with a route penalty score guided tree search"](https://pubs.rsc.org/en/content/articlelanding/2023/sc/d3sc01604h).
 
-The goal of this tool is to predict multistep retrosynthesis routes using a tree search strategy and exploiting the Disconnection-Aware Retrosynthesis model. This single-step retrosynthesis model is augmented by combining a bias-free systematic tagging as well as a template-based-inspired tagging using a reaction center substructure identification from known reactions.
+The goal of this tool is to predict multistep retrosynthesis routes using a tree search strategy and exploiting the Disconnection-Aware Retrosynthesis model. This single-step retrosynthesis model is augmented by combining a bias-free systematic tagging as well as a template-based-inspired tagging using a reaction center substructure identification from known reactions. The work was extended to biocatalysis by running two TTL in parallel. 
 
 ## Setup Environment
 
 
 ``` bash
-conda create -n MultiStepRetro python=3.8.16 -y
-conda activate MultiStepRetro
+conda create -n MultiStepRetro_ENZ python=3.8.16 -y
+conda activate MultiStepRetro_ENZ
 
-git clone https://github.com/reymond-group/MultiStepRetrosynthesisTTL.git
-cd MultiStepRetrosynthesisTTL
-pip install .
+git clone https://github.com/reymond-group/MultiStepRetrosynthesisTTL.git 
+cd TTLRetro
+pip install -e .
 ```
 
-## Download Models and Tagging Templates
+## Model Requirements
 
-Download models from Zenodo:
+Auto-Tag, Disconnection-Aware Retrosynthesis (T1), Reagent Prediction (T2), and Forward Validation Transformer (T3) models should be placed into your `models` folder and referenced in the config file. 
 
-``` bash
-wget https://zenodo.org/record/8160148/files/USPTO_STEREO_separated_T0_AutoTag_260000.pt?download=1 -O models/USPTO_STEREO_separated_T0_AutoTag_260000.pt
-wget https://zenodo.org/record/8160148/files/USPTO_STEREO_separated_T1_Retro_255000.pt?download=1 -O models/USPTO_STEREO_separated_T1_Retro_255000.pt
-wget https://zenodo.org/record/8160148/files/USPTO_STEREO_separated_T2_Reagent_Pred_225000.pt?download=1 -O models/USPTO_STEREO_separated_T2_Reagent_Pred_225000.pt
-wget https://zenodo.org/record/8160148/files/USPTO_STEREO_separated_T3_Forward_255000.pt?download=1 -O models/USPTO_STEREO_separated_T3_Forward_255000.pt
-
-```
-
-## Commercial Building Blocks
-
-The list of commercial compounds should be requested and downloaded from [MolPort](https://www.molport.com/shop/access-databases) and/or from [Enamine](https://enamine.net/building-blocks/building-blocks-catalog). SMILES should be canonicalized using the same environment and located as one SMILES per line and the path. The file should be referenced in the config file as "commercial_file_path".
+The list of commercial compounds should be canonicalized using the same environment and located as one SMILES per line and the path referenced in the config file.
 
 ## Usage for Multistep Prediction
 
@@ -43,9 +33,9 @@ retrosynthesis --config configs/config_example.yaml
 
 ## Visualizing Results
 
-Results are written into `output/project_name/` as pickle files. Forward validated single step-reaction predictions are stored as `output/project_name/DayJob__prediction.pkl`, and full predicted route paths are stored as `output/project_name/DayJob__tree.pkl`, which refers to reaction indexes from `prediction.pkl`. Routes could be sorted by scores to get the best ones. Temporary checkpoints are constantly written in the `output/project_name/` folder after each iteration to monitor the progress of retrosynthesis, it also serves to resume a job starting from a checkpoint. If logs are enabled, those are written into `output/project_name/`.
+Results are written into `output/project_name/` as pickle files. Forward validated single step-reaction predictions are stored as `output/project_name/DayJob__prediction.pkl`, and full predicted route paths are stored as `output/project_name/DayJob__tree.pkl`, which refers to reaction indexes from `prediction.pkl`. Routes could be sorted by scores to get the best ones. Temporary checkpoints are constantly written in the `output/` folder after each iteration to monitor the progress of retrosynthesis, and also to resume a job starting from those files. If logs are enabled, those are written into `output/project_name/`.
 
-To visualize predicted routes, check this notebook [`/notebooks/visualize_results.ipynb`](https://github.com/DavKre/TTLRetro/blob/main/notebook/visualize_results.ipynb) or the following example:
+To visualize predicted routes, check this notebook [`/notebooks/visualize_results.ipynb`](https://github.com/reymond-group/MultiStepRetrosynthesisTTL/blob/main/notebook/visualize_results.ipynb) or the following example:
 
 ``` python
 import pandas as pd
@@ -128,19 +118,35 @@ GitHub repository: [SCScore](https://github.com/connorcoley/scscore)
 }
 ```
 
-### Cite this work
+## Cite this work
 
 ``` bash
-@article{kreutterMultistepRetrosynthesisCombining2023,
-  title = {Multistep Retrosynthesis Combining a Disconnection Aware Triple Transformer Loop 
-		with a Route Penalty Score Guided Tree Search},
+
+@article{kreutterChemoenzymaticMultistepRetrosynthesis2024,
+  title = {Chemoenzymatic {{Multistep Retrosynthesis}} with {{Transformer Loops}}},
   author = {Kreutter, David and Reymond, Jean-Louis},
-  url = {https://pubs.rsc.org/en/content/articlelanding/2023/sc/d3sc01604h},
-  doi = {10.1039/D3SC01604H},
-  publisher = {The Royal Society of Chemistry},
-  date = {2023-09-01},
-  journaltitle = {Chemical Science},
-  shortjournal = {Chem. Sci.},
-  issn = {2041-6539},
+  date = {2024-04-12},
+  eprinttype = {ChemRxiv},
+  doi = {10.26434/chemrxiv-2024-svr99},
+  url = {https://chemrxiv.org/engage/chemrxiv/article-details/6617b48391aefa6ce157c2b4},
+  pubstate = {preprint}
+}
+```
+
+``` bash
+
+@article{kreutter_multistep_2023,
+	title = {Multistep Retrosynthesis Combining a Disconnection Aware Triple Transformer Loop 
+		with a Route Penalty Score Guided Tree Search},
+	author = {Kreutter, David and Reymond, Jean-Louis},
+	url = {https://pubs.rsc.org/en/content/articlelanding/2023/sc/d3sc01604h},
+	doi = {10.1039/D3SC01604H},
+	date = {2023-09-20},
+	journaltitle = {Chemical Science},
+	shortjournal = {Chem. Sci.},
+	volume = {14},
+	number = {36},
+	pages = {9959--9969},
+	publisher = {{The Royal Society of Chemistry}},
 }
 ```
