@@ -409,7 +409,7 @@ class MultiStepGraphRetro:
                 top_to_keep = self.tree_max_best
                 
             solved = a[a['Solved'] == 'Yes'].copy()
-            print(len(solved), 'route solved')  #DEBUG
+            #print(len(solved), 'route solved')  #DEBUG
             unsolved = a[a['Solved'] == 'No'].sort_values('Score', ascending=False).copy()[0:top_to_keep].reset_index(drop=True)
             a = pd.concat([solved, unsolved]).sort_values('Score', ascending=False).copy().reset_index(drop=True)
 
@@ -423,6 +423,7 @@ class MultiStepGraphRetro:
                 if len(targets) - len(list(set(targets))) >= 1:
                     a.at[each_tree, 'Solved'] = 'Failed_Loop'
 
+        print(len(a[a['Solved'] == 'Yes']), 'route solved')
         if self.log: self.make_single_retropredictions.write_logs('Tree calculation done.')
         return a
 

@@ -106,3 +106,9 @@ ENV/
 
 # Models
 models/
+
+stocks/*.smi
+stocks/*.txt
+stocks/*.csv
+tmp/
+output/

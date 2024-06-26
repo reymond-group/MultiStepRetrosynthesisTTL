@@ -114,7 +114,7 @@ def _check_retro_config(conf_dict):
     if conf_dict.Substructure_Tagging and conf_dict.list_substructures_path == '':
         print('Invalid configuration, no path to substructures.')
         sys.exit(2)
-    if not conf_dict.Retro_ENZR and conf_dict.list_substr_path_ENZR == '':
+    if conf_dict.Retro_ENZR and conf_dict.list_substr_path_ENZR == '':
         print('Invalid configuration, no path to substructures for Enz.')
         sys.exit(2)
     

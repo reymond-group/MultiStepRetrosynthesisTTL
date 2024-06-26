@@ -527,35 +527,39 @@ class SingleStepRetrosynthesis:
         target = self.canonicalize_smiles(SMILES)
         if log: self.write_logs('Retro prediction on mol ' + str(target))
         
-        list_retro_USPTO = self._get_list_tags(
-            Random_Tagging = Random_Tagging, 
-            AutoTagging = AutoTagging, 
-            AutoTagModel = self.USPTO_AutoTag_path, 
-            Substructure_Tagging = Substructure_Tagging, 
-            mark_count = mark_count, 
-            neighbors = neighbors, 
-            list_substructures = self.list_substructures, 
-            target = target, 
-            SMILES = SMILES, 
-            AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
-            mark_locations_filter = mark_locations_filter, 
-            log = log, 
-        )
+        if Retro_USPTO:
+            list_retro_USPTO = self._get_list_tags(
+                Random_Tagging = Random_Tagging, 
+                AutoTagging = AutoTagging, 
+                AutoTagModel = self.USPTO_AutoTag_path, 
+                Substructure_Tagging = Substructure_Tagging, 
+                mark_count = mark_count, 
+                neighbors = neighbors, 
+                list_substructures = self.list_substructures, 
+                target = target, 
+                SMILES = SMILES, 
+                AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
+                mark_locations_filter = mark_locations_filter, 
+                log = log, 
+            )
+        else: list_retro_USPTO = []
 
-        list_retro_ENZR = self._get_list_tags(
-            Random_Tagging = False,     # Random tagging is not used for ENZR
-            AutoTagging = AutoTagging, 
-            AutoTagModel = self.ENZR_AutoTag_path, 
-            Substructure_Tagging = Substructure_Tagging, 
-            mark_count = mark_count, 
-            neighbors = neighbors, 
-            list_substructures = self.list_substructures_ENZR, 
-            target = target, 
-            SMILES = SMILES, 
-            AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
-            mark_locations_filter = mark_locations_filter, 
-            log = log, 
-        )
+        if Retro_ENZR:
+            list_retro_ENZR = self._get_list_tags(
+                Random_Tagging = False,     # Random tagging is not used for ENZR
+                AutoTagging = AutoTagging, 
+                AutoTagModel = self.ENZR_AutoTag_path, 
+                Substructure_Tagging = Substructure_Tagging, 
+                mark_count = mark_count, 
+                neighbors = neighbors, 
+                list_substructures = self.list_substructures_ENZR, 
+                target = target, 
+                SMILES = SMILES, 
+                AutoTagging_Beam_Size = AutoTagging_Beam_Size, 
+                mark_locations_filter = mark_locations_filter, 
+                log = log, 
+            )
+        else: list_retro_ENZR = []
         
         concat_models = []
         

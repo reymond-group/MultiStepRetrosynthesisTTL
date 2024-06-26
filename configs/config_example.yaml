@@ -21,16 +21,16 @@ AutoTagging: True               # Enables Transformer-based tagging
 AutoTagging_Beam_Size: 50       # Number of tags to generate by the tagging Transformer
 Substructure_Tagging: True      # Enable tagging by matching substructure
 list_substructures_path: 'stocks/list_conditionnal_substructures_tags_R2.csv'
-list_substr_path_ENZR: 'stocks/list_conditionnal_substructures_tags_ENZR_R2.csv'
+list_substr_path_ENZR: ''
 
 # USPTO Retrosynthesis parameters:
 Retro_USPTO: True               # Enables USPTO T1 model
 Fwd_USPTO_Reag_Pred: True       # Enables USPTO T3 model
 
 # ENZR Retrosynthesis parameters:
-Retro_ENZR: True                # Enables ENZR T1 model
-Fwd_ENZ_Reag_Pred: True         # Enables ENZR T3 model
-ENZR_confidence_threshold: 0.97 # T3 Confidence threshold under which the predictions are discarded
+Retro_ENZR: False                # Enables ENZR T1 model
+Fwd_ENZ_Reag_Pred: False         # Enables ENZR T3 model
+ENZR_confidence_threshold: 0.9 # T3 Confidence threshold under which the predictions are discarded
 
 # Beam sizes:
 Retro_beam_size: 3              # Number of set of precursors to predict per molecule
@@ -53,10 +53,10 @@ USPTO_T2_path:      'USPTO_STEREO_separated_T2_Reagent_Pred_225000.pt'
 USPTO_T3_path:      'USPTO_STEREO_separated_T3_Forward_255000.pt'
 
 # Transformer model paths, ENZR:
-ENZR_AutoTag_path:  ''
-ENZR_T1_path:       'T1_ENZR_USPTO_step_275000.pt'
-ENZR_T2_path:       'T2_ENZR_USPTO_step_295000.pt'
-ENZR_T3_path:       'T3_ENZR_USPTO_step_285000.pt'
+ENZR_AutoTag_path:  'AutoTag_ENZR_USPTO.pt'
+ENZR_T1_path:       'T1_ENZR_USPTO.pt'
+ENZR_T2_path:       'T2_ENZR_USPTO.pt'
+ENZR_T3_path:       'T3_ENZR_USPTO.pt'
 
 # Prediction filters (do not use):
 similarity_filter: False        # Filters out retrosynthesis predictions too similar to the target 
